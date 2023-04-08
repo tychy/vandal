@@ -19,9 +19,7 @@ func main() {
 }
 
 func readPdf(path string) (string, error) {
-	f, r, err := pdf.Open(path)
-	// remember close file
-    defer f.Close()
+	r, err := pdf.Open(path)
 	if err != nil {
 		return "", err
 	}
@@ -38,9 +36,7 @@ func readPdf(path string) (string, error) {
 ## Read all text with styles from PDF
 ```golang
 func readPdf2(path string) (string, error) {
-	f, r, err := pdf.Open(path)
-	// remember close file
-	defer f.Close()
+	r, err := pdf.Open(path)
 	if err != nil {
 		return "", err
 	}
@@ -79,10 +75,7 @@ func main() {
 }
 
 func readPdf(path string) (string, error) {
-	f, r, err := pdf.Open(path)
-	defer func() {
-		_ = f.Close()
-	}()
+	r, err := pdf.Open(path)
 	if err != nil {
 		return "", err
 	}
