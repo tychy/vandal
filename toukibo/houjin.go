@@ -10,6 +10,7 @@ import (
 type HoujinkakuType string
 
 const (
+	HoujinKakuUnknown      HoujinkakuType = "不明"
 	HoujinKakuKabusiki     HoujinkakuType = "株式会社"
 	HoujinKakuYugen        HoujinkakuType = "有限会社"
 	HoujinKakuGoudou       HoujinkakuType = "合同会社"
@@ -24,6 +25,7 @@ const (
 	HoujinKakuShokoukai    HoujinkakuType = "商工会"
 	HoujinKakuKoueki       HoujinkakuType = "公益財団法人"
 	HoujinKakuNouji        HoujinkakuType = "農事組合"
+	HoujinKakuShukyo       HoujinkakuType = "宗教法人"
 	HoujinKakuKanriKumiai  HoujinkakuType = "管理組合法人"
 	HoujinKakuIryo         HoujinkakuType = "医療法人"
 	HoujinKakuSihoshosi    HoujinkakuType = "司法書士法人"
@@ -86,28 +88,42 @@ func FindHoujinKaku(s string) HoujinkakuType {
 	} else if strings.Contains(s, "特定非営利活動法人") {
 		return HoujinKakuHieiri
 	}
-
-	panic("法人格が見つかりませんでした")
+	return HoujinKakuUnknown
 }
 
 type Houjin struct {
+	Content            string
 	Parts              []string
 	CreatedAt          time.Time
 	HoujinNumber       string
 	HoujinType         HoujinkakuType
 	CompanyName        string
 	CompanyAddress     string
+	Sihonkin           string
 	Koukoku            string
 	CompanyCreatedDate string
+	ToukiJiko          string
 }
 
 func NewHoujinFromToukibo(tc ToukiboContent) *Houjin {
 	return &Houjin{
+		Content:        tc.Content,
 		Parts:          tc.Parts,
 		CreatedAt:      tc.Header.CreatedAt,
 		CompanyName:    tc.Header.CompanyName,
 		CompanyAddress: tc.Header.CompanyAddress,
 	}
+}
+
+func (h *Houjin) String() string {
+	return fmt.Sprintf("法人番号: %s\n法人格: %s\n商号: %s\n住所: %s\n資本金: %s\n設立日: %s\n登記事項: %s\n",
+		h.HoujinNumber,
+		h.HoujinType,
+		h.CompanyName,
+		h.CompanyAddress,
+		h.Sihonkin,
+		h.CompanyCreatedDate,
+		h.ToukiJiko)
 }
 
 func (h *Houjin) ReadHoujinNumber() error {
@@ -118,78 +134,38 @@ func (h *Houjin) ReadHoujinNumber() error {
 	matches := regex.FindStringSubmatch(h.Parts[0])
 	if len(matches) > 0 {
 		h.HoujinNumber = zenkakuToHankaku(matches[1])
-		fmt.Printf("法人番号: %s\n", h.HoujinNumber)
 	} else {
 		return fmt.Errorf("法人番号が見つかりませんでした")
 	}
 	return nil
 }
 
-func (h *Houjin) ReadCompanyName() error {
-	// 商号に利用できる文字
-	// https://www.moj.go.jp/MINJI/minji44.html
-	pattern := fmt.Sprintf(`(商　*号|名　*称)　*│　*([%s]+)`, ZenkakuStringPattern)
-	regex := regexp.MustCompile(pattern)
-
-	// 抽出された会社名を表示
-	matches := regex.FindStringSubmatch(h.CompanyName)
-	if len(matches) > 0 {
-		h.CompanyName = zenkakuToHankaku(strings.TrimSpace(matches[2]))
-		fmt.Printf("会社名: %s\n", h.CompanyName)
-	} else {
-		return fmt.Errorf("会社名が見つかりませんでした。")
-	}
-	return nil
-}
-
-func (h *Houjin) ReadCompanyAddress() error {
-	pattern := fmt.Sprintf(`(本　*店|主たる事務所)　*│　*([%s]+)`, ZenkakuStringPattern)
-	regex := regexp.MustCompile(pattern)
-
-	matches := regex.FindStringSubmatch(h.content)
-	if len(matches) > 0 {
-		h.CompanyAddress = zenkakuToHankaku(strings.TrimSpace(matches[2]))
-		fmt.Printf("会社住所: %s\n", h.CompanyAddress)
-	} else {
-		return fmt.Errorf("会社住所が見つかりませんでした。")
-	}
-	return nil
-}
-
-func (h *Houjin) ReadKoukoku() error {
-	noKoukokuList := []HoujinkakuType{
-		HoujinKakuKyodou,
-		HoujinKakuRoudou,
-		HoujinKakuNPO,
-		HoujinKakuSihoshosi,
-		HoujinKakuHieiri,
-		HoujinKakuSinrin,
-		HoujinKakuIryo,
-		HoujinKakuShokoukai,
-		HoujinKakuZeirishi,
-		HoujinKakuIppanShadan,
-		HoujinKakuShakaifukusi,
-		HoujinKakuTokutei,
-		HoujinKakuSinyou,
-		HoujinKakuIppanZaisan,
-		HoujinKakuIppanZaidan,
-		HoujinKakuNouji,
-		HoujinKakuSeikatuEisei,
-	}
-
-	for _, v := range noKoukokuList {
-		if h.HoujinType == v {
-			return nil
+func contains(target HoujinkakuType, list []HoujinkakuType) bool {
+	for _, t := range list {
+		if t == target {
+			return true
 		}
+	}
+	return false
+}
+func (h *Houjin) ReadKoukoku() error {
+	koukokuList := []HoujinkakuType{
+		HoujinKakuKabusiki,
+		HoujinKakuYugen,
+		HoujinKakuGoudou,
+		HoujinKakuGousi,
+		HoujinKakuGoumei,
+	}
+	if !contains(h.HoujinType, koukokuList) {
+		return nil
 	}
 
 	pattern := fmt.Sprintf(`公告をする方法　*│　*([%s]+)`, ZenkakuStringPattern)
 	regex := regexp.MustCompile(pattern)
 
-	matches := regex.FindStringSubmatch(h.content)
+	matches := regex.FindStringSubmatch(h.Content)
 	if len(matches) > 0 {
 		h.Koukoku = strings.TrimSpace(matches[1])
-		fmt.Printf("公告をする方法: %s\n", h.Koukoku)
 	} else {
 		return fmt.Errorf("公告をする方法が見つかりませんでした。")
 	}
@@ -200,45 +176,73 @@ func (h *Houjin) ReadCompanyCreatedDate() error {
 	pattern := fmt.Sprintf(`(会社|法人)成立の年月日　*│　*([%s]+)`, ZenkakuStringPattern)
 	regex := regexp.MustCompile(pattern)
 
-	matches := regex.FindStringSubmatch(h.content)
+	matches := regex.FindStringSubmatch(h.Content)
 	if len(matches) > 0 {
 		h.CompanyCreatedDate = zenkakuToHankaku(strings.TrimSpace(matches[2]))
-		fmt.Printf("法人成立の年月日: %s\n", h.CompanyCreatedDate)
 	} else {
 		return fmt.Errorf("法人成立の年月日が見つかりませんでした。")
 	}
 	return nil
 }
 
-func Extract(content string) (Houjin, error) {
-	houjin := Houjin{content: content}
-	dt, err := ReadCreatedAt(content)
-	if err != nil {
-		panic(err)
+func (h *Houjin) CheckShukyoHoujin() bool {
+	if h.HoujinType == HoujinKakuUnknown && strings.Contains(h.Content, "宗教法人") {
+		h.HoujinType = HoujinKakuShukyo
+		return true
 	}
-	houjin.CreatedAt = dt
-	err = houjin.ReadHoujinNumber()
-	if err != nil {
-		panic(err)
-	}
-	err = houjin.ReadCompanyName()
-	if err != nil {
-		panic(err)
-	}
-	houjin.HoujinType = FindHoujinKaku(houjin.CompanyName)
+	return false
+}
 
-	err = houjin.ReadCompanyAddress()
+func (h *Houjin) ReadToukiJikou() error {
+	s := h.Parts[len(h.Parts)-1]
+	pattern := "┃登記記録に関する│　*"
+	cleanedText := trimPattern(s, pattern)
+
+	pattern = "　*┃ ┃事項　　　　　　│　*"
+	cleanedText = trimPattern(cleanedText, pattern)
+
+	//　改行に対応
+	pattern = "　*┃ ┃　　　　　　　　│　*"
+	cleanedText = trimPattern(cleanedText, pattern)
+
+	// 登記事項の変更に対応
+	pattern = "┃ ┃　　　　　　　　├─────────────────────────────────────┨ ┃　　　　　　　　│"
+	cleanedText = trimPattern(cleanedText, pattern)
+
+	// 末尾の記号を削除
+	cleanedText = strings.Replace(cleanedText, "┃", "", -1)
+	h.ToukiJiko = zenkakuToHankaku(cleanedText)
+	return nil
+}
+
+func (h *Houjin) Extract() error {
+	err := h.ReadHoujinNumber()
 	if err != nil {
 		panic(err)
 	}
 
-	err = houjin.ReadKoukoku()
+	h.HoujinType = FindHoujinKaku(h.CompanyName)
+	if h.HoujinType == HoujinKakuUnknown {
+		check := h.CheckShukyoHoujin()
+		if !check {
+			return fmt.Errorf("法人格が不明です")
+		}
+	}
+
+	err = h.ReadKoukoku()
 	if err != nil {
 		panic(err)
 	}
-	err = houjin.ReadCompanyCreatedDate()
+
+	err = h.ReadCompanyCreatedDate()
 	if err != nil {
 		panic(err)
 	}
-	return houjin, nil
+
+	err = h.ReadToukiJikou()
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
 }

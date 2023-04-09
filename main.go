@@ -17,10 +17,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = toukibo.Extract(content)
+	//_, err = toukibo.Extract(content)
+	tc, err := toukibo.Parse(content)
 	if err != nil {
 		panic(err)
 	}
+	houjin := toukibo.NewHoujinFromToukibo(tc)
+	houjin.Extract()
+
+	fmt.Println(houjin.String())
 	return
 }
 
