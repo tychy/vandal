@@ -10,32 +10,32 @@ import (
 type HoujinkakuType string
 
 const (
-	HoujinKakuUnknown      HoujinkakuType = "不明"
-	HoujinKakuKabusiki     HoujinkakuType = "株式会社"
-	HoujinKakuYugen        HoujinkakuType = "有限会社"
-	HoujinKakuGoudou       HoujinkakuType = "合同会社"
-	HoujinKakuGousi        HoujinkakuType = "合資会社"
-	HoujinKakuGoumei       HoujinkakuType = "合名会社"
-	HoujinKakuTokutei      HoujinkakuType = "特定目的会社"
-	HoujinKakuKyodou       HoujinkakuType = "協同組合"
-	HoujinKakuRoudou       HoujinkakuType = "労働組合"
-	HoujinKakuSinrin       HoujinkakuType = "森林組合"
-	HoujinKakuSeikatuEisei HoujinkakuType = "生活衛生同業組合"
-	HoujinKakuSinyou       HoujinkakuType = "信用金庫"
-	HoujinKakuShokoukai    HoujinkakuType = "商工会"
-	HoujinKakuKoueki       HoujinkakuType = "公益財団法人"
-	HoujinKakuNouji        HoujinkakuType = "農事組合"
-	HoujinKakuShukyo       HoujinkakuType = "宗教法人"
-	HoujinKakuKanriKumiai  HoujinkakuType = "管理組合法人"
-	HoujinKakuIryo         HoujinkakuType = "医療法人"
-	HoujinKakuSihoshosi    HoujinkakuType = "司法書士法人"
-	HoujinKakuZeirishi     HoujinkakuType = "税理士法人"
-	HoujinKakuShakaifukusi HoujinkakuType = "社会福祉法人"
-	HoujinKakuIppanShadan  HoujinkakuType = "一般社団法人"
-	HoujinKakuIppanZaisan  HoujinkakuType = "一般財産法人"
-	HoujinKakuIppanZaidan  HoujinkakuType = "一般財団法人"
-	HoujinKakuNPO          HoujinkakuType = "NPO法人"
-	HoujinKakuHieiri       HoujinkakuType = "特定非営利活動法人"
+	HoujinKakuUnknown         HoujinkakuType = "不明"
+	HoujinKakuKabusiki        HoujinkakuType = "株式会社"
+	HoujinKakuYugen           HoujinkakuType = "有限会社"
+	HoujinKakuGoudou          HoujinkakuType = "合同会社"
+	HoujinKakuGousi           HoujinkakuType = "合資会社"
+	HoujinKakuGoumei          HoujinkakuType = "合名会社"
+	HoujinKakuTokuteiMokuteki HoujinkakuType = "特定目的会社"
+	HoujinKakuKyodou          HoujinkakuType = "協同組合"
+	HoujinKakuRoudou          HoujinkakuType = "労働組合"
+	HoujinKakuSinrin          HoujinkakuType = "森林組合"
+	HoujinKakuSeikatuEisei    HoujinkakuType = "生活衛生同業組合"
+	HoujinKakuSinyou          HoujinkakuType = "信用金庫"
+	HoujinKakuShokoukai       HoujinkakuType = "商工会"
+	HoujinKakuKoueki          HoujinkakuType = "公益財団法人"
+	HoujinKakuNouji           HoujinkakuType = "農事組合"
+	HoujinKakuShukyo          HoujinkakuType = "宗教法人"
+	HoujinKakuKanriKumiai     HoujinkakuType = "管理組合法人"
+	HoujinKakuIryo            HoujinkakuType = "医療法人"
+	HoujinKakuSihoshosi       HoujinkakuType = "司法書士法人"
+	HoujinKakuZeirishi        HoujinkakuType = "税理士法人"
+	HoujinKakuShakaifukusi    HoujinkakuType = "社会福祉法人"
+	HoujinKakuIppanShadan     HoujinkakuType = "一般社団法人"
+	HoujinKakuIppanZaisan     HoujinkakuType = "一般財産法人"
+	HoujinKakuIppanZaidan     HoujinkakuType = "一般財団法人"
+	HoujinKakuNPO             HoujinkakuType = "NPO法人"
+	HoujinKakuTokuteiHieiri   HoujinkakuType = "特定非営利活動法人"
 )
 
 func FindHoujinKaku(s string) HoujinkakuType {
@@ -50,7 +50,7 @@ func FindHoujinKaku(s string) HoujinkakuType {
 	} else if strings.Contains(s, "合名会社") {
 		return HoujinKakuGoumei
 	} else if strings.Contains(s, "特定目的会社") {
-		return HoujinKakuTokutei
+		return HoujinKakuTokuteiMokuteki
 	} else if strings.Contains(s, "協同組合") {
 		return HoujinKakuKyodou
 	} else if strings.Contains(s, "労働組合") {
@@ -86,7 +86,7 @@ func FindHoujinKaku(s string) HoujinkakuType {
 	} else if strings.Contains(s, "NPO法人") {
 		return HoujinKakuNPO
 	} else if strings.Contains(s, "特定非営利活動法人") {
-		return HoujinKakuHieiri
+		return HoujinKakuTokuteiHieiri
 	}
 	return HoujinKakuUnknown
 }
@@ -215,6 +215,28 @@ func (h *Houjin) ReadToukiJikou() error {
 	return nil
 }
 
+func (h *Houjin) ReadSihonkin() error {
+	sihonkinList := []HoujinkakuType{
+		HoujinKakuKabusiki,
+		HoujinKakuYugen,
+		HoujinKakuGoudou,
+	}
+	if !contains(h.HoujinType, sihonkinList) {
+		return nil
+	}
+
+	pattern := fmt.Sprintf(`資本金の額　*│　*([%s]+)`, ZenkakuStringPattern)
+	regex := regexp.MustCompile(pattern)
+
+	matches := regex.FindStringSubmatch(h.Content)
+	if len(matches) > 0 {
+		h.Sihonkin = zenkakuToHankaku(strings.TrimSpace(matches[1]))
+	} else {
+		return fmt.Errorf("資本金が見つかりませんでした。")
+	}
+	return nil
+}
+
 func (h *Houjin) Extract() error {
 	err := h.ReadHoujinNumber()
 	if err != nil {
@@ -240,6 +262,11 @@ func (h *Houjin) Extract() error {
 	}
 
 	err = h.ReadToukiJikou()
+	if err != nil {
+		panic(err)
+	}
+
+	err = h.ReadSihonkin()
 	if err != nil {
 		panic(err)
 	}
