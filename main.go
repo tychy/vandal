@@ -2,21 +2,25 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"vandal/pdf"
 	"vandal/toukibo"
 )
 
 func main() {
-	content, err := readPdf("sample/houjin/sample1.pdf")
+	f := flag.String("path", "sample1", "")
+	flag.Parse()
+	path := fmt.Sprintf("sample/houjin/%s.pdf", *f)
+	content, err := readPdf(path)
+
 	if err != nil {
 		panic(err)
 	}
-	houjin, err := toukibo.Extract(content)
+	_, err = toukibo.Extract(content)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(houjin.CreatedAt)
 	return
 }
 
