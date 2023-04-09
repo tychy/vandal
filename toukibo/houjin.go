@@ -7,44 +7,6 @@ import (
 	"time"
 )
 
-const (
-	ZenkakuZero          = '０'
-	ZenkakuNine          = '９'
-	ZenkakuA             = 'Ａ'
-	ZenkakuZ             = 'Ｚ'
-	ZenkakuSmallA        = 'ａ'
-	ZenkakuSmallZ        = 'ｚ'
-	ZenkakuSpace         = '　'
-	ZenkakuColon         = '：'
-	ZenkakuSlash         = '／'
-	ZenkakuHyphen        = '－'
-	ZenkakuStringPattern = `\p{Han}\p{Hiragana}\p{Katakana}Ａ-Ｚａ-ｚ０-９A-Za-z0-9＆’，‐．・ー\s　。－`
-)
-
-func zenkakuToHankaku(s string) string {
-	var result string
-	for _, r := range s {
-		if r >= ZenkakuZero && r <= ZenkakuNine {
-			result += string(r - ZenkakuZero + '0')
-		} else if r >= ZenkakuA && r <= ZenkakuZ {
-			result += string(r - ZenkakuA + 'A')
-		} else if r >= ZenkakuSmallA && r <= ZenkakuSmallZ {
-			result += string(r - ZenkakuSmallA + 'a')
-		} else if r == ZenkakuSlash {
-			result += "/"
-		} else if r == ZenkakuColon {
-			result += ":"
-		} else if r == ZenkakuSpace {
-			result += " "
-		} else if r == ZenkakuHyphen {
-			result += "-"
-		} else {
-			result += string(r)
-		}
-	}
-	return result
-}
-
 type HoujinkakuType string
 
 const (
@@ -129,7 +91,7 @@ func FindHoujinKaku(s string) HoujinkakuType {
 }
 
 type Houjin struct {
-	content            string
+	Parts              []string
 	CreatedAt          time.Time
 	HoujinNumber       string
 	HoujinType         HoujinkakuType
@@ -139,34 +101,13 @@ type Houjin struct {
 	CompanyCreatedDate string
 }
 
-func (h Houjin) GetContent() string {
-	return h.content
-}
-
-func (h *Houjin) ReadCreatedAt() error {
-	// 正規表現パターン: 全角数字で構成された日付と時刻
-	pattern := "([０-９]{2,4}／[０-９]{1,2}／[０-９]{1,2})　*([０-９]{1,2}：[０-９]{1,2})"
-	regex := regexp.MustCompile(pattern)
-
-	// 抽出された日付と時刻を表示
-	matches := regex.FindStringSubmatch(h.content)
-	if len(matches) > 0 {
-		// 全角数字を半角数字に変換
-		dateStr := zenkakuToHankaku(matches[1])
-		timeStr := zenkakuToHankaku(matches[2])
-
-		// 日付と時刻を time.Time 型に変換
-		layout := "2006/01/02 15:04"
-		dt, err := time.Parse(layout, fmt.Sprintf("%s %s", dateStr, timeStr))
-		if err != nil {
-			return fmt.Errorf("日付と時刻の変換に失敗しました: %w", err)
-		}
-		h.CreatedAt = dt
-		fmt.Printf("日時: %v\n", h.CreatedAt)
-	} else {
-		return fmt.Errorf("日付と時刻が見つかりませんでした")
+func NewHoujinFromToukibo(tc ToukiboContent) *Houjin {
+	return &Houjin{
+		Parts:          tc.Parts,
+		CreatedAt:      tc.Header.CreatedAt,
+		CompanyName:    tc.Header.CompanyName,
+		CompanyAddress: tc.Header.CompanyAddress,
 	}
-	return nil
 }
 
 func (h *Houjin) ReadHoujinNumber() error {
@@ -174,7 +115,7 @@ func (h *Houjin) ReadHoujinNumber() error {
 	pattern := "([０-９]{1,4}－[０-９]{1,2}－[０-９]{1,6})"
 	regex := regexp.MustCompile(pattern)
 
-	matches := regex.FindStringSubmatch(h.content)
+	matches := regex.FindStringSubmatch(h.Parts[0])
 	if len(matches) > 0 {
 		h.HoujinNumber = zenkakuToHankaku(matches[1])
 		fmt.Printf("法人番号: %s\n", h.HoujinNumber)
@@ -191,11 +132,10 @@ func (h *Houjin) ReadCompanyName() error {
 	regex := regexp.MustCompile(pattern)
 
 	// 抽出された会社名を表示
-	matches := regex.FindStringSubmatch(h.content)
+	matches := regex.FindStringSubmatch(h.CompanyName)
 	if len(matches) > 0 {
 		h.CompanyName = zenkakuToHankaku(strings.TrimSpace(matches[2]))
 		fmt.Printf("会社名: %s\n", h.CompanyName)
-		h.HoujinType = FindHoujinKaku(h.CompanyName)
 	} else {
 		return fmt.Errorf("会社名が見つかりませんでした。")
 	}
@@ -272,10 +212,11 @@ func (h *Houjin) ReadCompanyCreatedDate() error {
 
 func Extract(content string) (Houjin, error) {
 	houjin := Houjin{content: content}
-	err := houjin.ReadCreatedAt()
+	dt, err := ReadCreatedAt(content)
 	if err != nil {
 		panic(err)
 	}
+	houjin.CreatedAt = dt
 	err = houjin.ReadHoujinNumber()
 	if err != nil {
 		panic(err)
@@ -284,6 +225,7 @@ func Extract(content string) (Houjin, error) {
 	if err != nil {
 		panic(err)
 	}
+	houjin.HoujinType = FindHoujinKaku(houjin.CompanyName)
 
 	err = houjin.ReadCompanyAddress()
 	if err != nil {
